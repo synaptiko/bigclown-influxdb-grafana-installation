@@ -102,6 +102,8 @@ $ ssh root@grahps
 # wget https://raw.githubusercontent.com/synaptiko/bigclown-influxdb-grafana-installation/master/bc-mqtt-to-influxdb.py -O /usr/bin/bc-mqtt-to-influxdb
 # chmod +x /usr/bin/bc-mqtt-to-influxdb
 # wget https://raw.githubusercontent.com/synaptiko/bigclown-influxdb-grafana-installation/master/bc-mqtt-to-influxdb.service -O /etc/systemd/system/bc-mqtt-to-influxdb.service
+# vim /etc/systemd/system/bc-mqtt-to-influxdb.service # update command arguments accordingly (or leave as is)
+ExecStart=/usr/bin/bc-mqtt-to-influxdb -h <gateway-ip> -t <base-topic>
 # systemctl daemon-reload
 # systemctl enable bc-mqtt-to-influxdb
 # systemctl start bc-mqtt-to-influxdb

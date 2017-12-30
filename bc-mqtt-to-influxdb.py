@@ -32,7 +32,7 @@ __version__ = '@@VERSION@@'
 
 LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
 
-DEFAULT_MQTT_HOST = '192.168.1.1'
+DEFAULT_MQTT_HOST = 'localhost'
 DEFAULT_MQTT_PORT = 1883
 DEFAULT_MQTT_TOPIC = 'node'
 DEFAULT_INFLUXDB_HOST = 'localhost'
@@ -42,11 +42,11 @@ DEFAULT_INFLUXDB_PORT = 8086
 def mgtt_on_connect(client, userdata, flags, rc):
     log.info('Connected to MQTT broker with (code %s)', rc)
 
-    database = 'bigclown-' + userdata['base_topic'].strip('/')
+    database = userdata['base_topic']
     userdata['influx'].create_database(database)
     userdata['influx'].switch_database(database)
 
-    client.subscribe(userdata['base_topic'] + '+/+/+/+')
+    client.subscribe(userdata['base_topic'] + '/+/+/+/+')
 
 
 def mgtt_on_message(client, userdata, msg):
@@ -64,12 +64,30 @@ def mgtt_on_message(client, userdata, msg):
     if isinstance(payload, dict):
         return
 
-    json_body = [{'measurement': topic[4],
-                    'time': now,
-                    'tags': { "device_id":topic[1], "dev": '/'.join(topic[2:4]) },
-                    'fields': {'value': payload}}]
-    userdata['influx'].write_points(json_body)
+    tags = {
+        'device_id': topic[1],
+        'dev': '/'.join(topic[2:4])
+    }
+    json_body = [{
+        'measurement': topic[4],
+        'time': now,
+        'tags': tags,
+        'fields': {
+            'value': payload
+        }
+    }]
 
+    if topic[4] == 'pir-event-count':
+        json_body.append({
+            'measurement': 'pir-movement',
+            'time': now,
+            'tags': tags,
+            'fields': {
+                'value': 1
+            }
+        })
+
+    userdata['influx'].write_points(json_body)
 
 def main():
     arguments = docopt(__doc__, version='bc-gateway %s' % __version__)
@@ -82,7 +100,7 @@ def main():
                             opts.get('influxdb_port', DEFAULT_INFLUXDB_PORT),
                             'root', 'root')
 
-    base_topic = opts.get('base_topic', DEFAULT_MQTT_TOPIC).rstrip('/') + '/'
+    base_topic = opts.get('base_topic', DEFAULT_MQTT_TOPIC).rstrip('/')
 
     mqttc = mqtt.Client(userdata={'influx': client, 'base_topic': base_topic})
     mqttc.on_connect = mgtt_on_connect
