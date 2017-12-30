@@ -1,0 +1,14 @@
+[Unit]
+Description=BigClown MQTT to InfluxDB
+After=network.target influxdb.service
+Requires=influxdb.service
+
+[Service]
+ExecStart=/usr/bin/bc-mqtt-to-influxdb
+User=bigclown
+Group=bigclown
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
