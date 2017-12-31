@@ -47,6 +47,7 @@ graphs
 request subnet-mask, broadcast-address, time-offset, routers,
 	domain-name, domain-name-servers, domain-search,
 …
+# dpkg-reconfigure tzdata # set correct timezone, ie. 'Europe/Prague'
 ```
 
 ### Install and configure InfluxDB
