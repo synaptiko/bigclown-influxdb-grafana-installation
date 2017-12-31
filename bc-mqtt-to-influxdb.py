@@ -77,9 +77,9 @@ def mgtt_on_message(client, userdata, msg):
         }
     }]
 
-    if topic[4] == 'pir-event-count':
+    if topic[2] == 'pir' and topic[4] == 'event-count':
         json_body.append({
-            'measurement': 'pir-movement',
+            'measurement': 'movement',
             'time': now,
             'tags': tags,
             'fields': {
