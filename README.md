@@ -55,14 +55,14 @@ request subnet-mask, broadcast-address, time-offset, routers,
 ```
 # lxc-attach -n influxdb-grafana # following commands are run in the LXC container context
 # apt install wget
-# wget https://dl.influxdata.com/influxdb/releases/influxdb_1.4.2_armhf.deb
-# dpkg -i influxdb_1.4.2_armhf.deb
+# wget https://dl.influxdata.com/influxdb/releases/influxdb_1.5.2_armhf.deb
+# dpkg -i influxdb_1.5.2_armhf.deb
 # chown influxdb:influxdb /var/lib/influxdb
+# vim /etc/influxdb/influxdb.conf # uncomment or change following options
+reporting-disabled = true
 # systemctl daemon-reload
 # systemctl enable influxdb
 # systemctl start influxdb
-# vim /etc/influxdb/influxdb.conf # uncomment or change following options
-reporting-disabled = true
 ```
 
 ### Install and configure ssh in the container
@@ -80,10 +80,10 @@ Follow the steps in [`grafana-on-raspberry/ci/README.md`](https://github.com/fg2
 
 Copy the `.deb` file into your LXC container, eg.:
 ```
-$ scp grafana_5.0.0-1514129671pre1_armhf.deb root@graphs:grafana_5.0.0-1514129671pre1_armhf.deb
+$ scp grafana_5.2.0-1526413131pre1_armhf.deb root@graphs:grafana_5.2.0-1526413131pre1_armhf.deb
 $ ssh root@grahps
 # apt install libfontconfig
-# dpkg -i grafana_5.0.0-1514129671pre1_armhf.deb
+# dpkg -i grafana_5.2.0-1526413131pre1_armhf.deb
 # chown grafana:grafana /var/lib/grafana
 # systemctl daemon-reload
 # systemctl enable grafana-server
@@ -108,4 +108,19 @@ ExecStart=/usr/bin/bc-mqtt-to-influxdb -h <gateway-ip> -t <base-topic>
 # systemctl daemon-reload
 # systemctl enable bc-mqtt-to-influxdb
 # systemctl start bc-mqtt-to-influxdb
+```
+
+*Hint: `gateway-ip` will be most probably 192.162.1.1 on Turris Omnia and I specified topic as bigclown-node.*
+
+*This is a config I used:*
+```
+# uci show bc-gateway-usb-dongle
+bc-gateway-usb-dongle.gateway=config
+bc-gateway-usb-dongle.gateway.name='usb-dongle'
+bc-gateway-usb-dongle.gateway.device='/dev/ttyUSB0'
+bc-gateway-usb-dongle.gateway.automatic_rename_kit_nodes='1'
+bc-gateway-usb-dongle.gateway.base_topic_prefix='bigclown-'
+bc-gateway-usb-dongle.mqtt=config
+bc-gateway-usb-dongle.mqtt.host='localhost'
+bc-gateway-usb-dongle.mqtt.port='1883'
 ```
