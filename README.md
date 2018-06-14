@@ -124,3 +124,113 @@ bc-gateway-usb-dongle.mqtt=config
 bc-gateway-usb-dongle.mqtt.host='localhost'
 bc-gateway-usb-dongle.mqtt.port='1883'
 ```
+
+## Setup Caddy with HTTPS for the access from the Internet
+
+Setup port forwarding of both 80 and 443 port to the IP of the lxc container.
+
+SSH into lxc container:
+```
+$ ssh root@grahps
+```
+
+Download and extract [Caddy](https://caddyserver.com/download):
+```
+# wget "https://caddyserver.com/download/linux/arm7?license=personal&telemetry=off" -O caddy_v0.11.0_linux_arm7_personal.tar.gz
+# tar -xzf caddy_v0.11.0_linux_arm7_personal.tar.gz caddy
+```
+
+Put the caddy binary in the system wide binary directory and give it
+appropriate ownership and permissions:
+```
+# mv caddy /usr/local/bin
+# chmod 755 /usr/local/bin/caddy
+```
+
+Give the caddy binary the ability to bind to privileged ports (e.g. 80, 443) as a non-root user:
+```
+# apt-get install libcap2-bin
+# setcap 'cap_net_bind_service=+ep' /usr/local/bin/caddy
+```
+
+Set up the user, group, and directories that will be needed:
+```
+# groupadd -g 33 www-data
+# useradd \
+  -g www-data --no-user-group \
+  --home-dir /var/www --no-create-home \
+  --shell /usr/sbin/nologin \
+  --system --uid 33 www-data
+# mkdir /etc/caddy
+# chown -R root:www-data /etc/caddy
+```
+
+Create and move Caddyfile:
+```
+# vim /etc/caddy/Caddyfile
+graphs.yourdomain.com
+basicauth / yourSecretUser yourSuperSecretPassword
+proxy / localhost:3000 {
+	header_upstream -Authorization
+}
+gzip
+log stdout
+errors stderr
+# chown www-data:www-data /etc/caddy/Caddyfile
+# chmod 444 /etc/caddy/Caddyfile
+```
+
+Test the configuration & initialize certificates:
+```
+# ulimit -n 8192
+# mkdir /etc/ssl/caddy
+# chown root:www-data /etc/ssl/caddy
+# chmod 0770 /etc/ssl/caddy
+# CADDYPATH=/etc/ssl/caddy caddy -log stdout -agree=true -conf=/etc/caddy/Caddyfile -root=/var/tmp
+> Enter your email address: <your@email.com><CR>
+<C-c>
+# chown -R root:www-data /etc/ssl/caddy
+# chmod -R 0770 /etc/ssl/caddy
+```
+
+Create service file, start and enable it:
+```
+# vim /etc/systemd/system/caddy.service
+[Unit]
+Description=Caddy HTTP/2 web server
+Documentation=https://caddyserver.com/docs
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+
+[Service]
+Restart=on-abnormal
+User=www-data
+Group=www-data
+Environment=CADDYPATH=/etc/ssl/caddy
+ExecStart=/usr/local/bin/caddy -log stdout -agree=true -conf=/etc/caddy/Caddyfile -root=/var/tmp
+ExecReload=/bin/kill -USR1 $MAINPID
+KillMode=mixed
+KillSignal=SIGQUIT
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+LimitNPROC=512
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadWriteDirectories=/etc/ssl/caddy
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+# chmod 644 /etc/systemd/system/caddy.service
+# systemctl daemon-reload
+# systemctl enable --now caddy.service
+```
+
+Verify everything is ok:
+```
+# journalctl --boot -u caddy.service
+```
