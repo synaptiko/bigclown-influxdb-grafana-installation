@@ -5,7 +5,7 @@ Graphs of values gathered from BigClown sensors and nodes.
 This setup uses Debian Stretch in LXC container on Turris Omnia.
 InfluxDB is used as a DB, Grafana as a graph tool.
 
-You first need to [setup the BigClown USB Dongle, Gateway and Mosquitto on Turris Omnia.](https://www.bigclown.com/doc/tutorials/turris-installation/)
+You first need to [setup the BigClown USB Dongle, Gateway and Mosquitto on Turris Omnia.](https://www.bigclown.com/doc/tutorials/custom-setup-on-turris/)
 
 *Note: the procedure was derived from [`bigclownlabs/bc-raspbian`](https://github.com/bigclownlabs/bc-raspbian).*
 
@@ -55,8 +55,8 @@ request subnet-mask, broadcast-address, time-offset, routers,
 ```
 # lxc-attach -n influxdb-grafana # following commands are run in the LXC container context
 # apt install wget
-# wget https://dl.influxdata.com/influxdb/releases/influxdb_1.5.2_armhf.deb
-# dpkg -i influxdb_1.5.2_armhf.deb
+# wget https://dl.influxdata.com/influxdb/releases/influxdb_1.6.3_armhf.deb
+# dpkg -i influxdb_1.6.3_armhf.deb
 # chown influxdb:influxdb /var/lib/influxdb
 # vim /etc/influxdb/influxdb.conf # uncomment or change following options
 reporting-disabled = true
@@ -75,15 +75,11 @@ reporting-disabled = true
 ```
 
 ### Install and configure Grafana
-
-Follow the steps in [`grafana-on-raspberry/ci/README.md`](https://github.com/fg2it/grafana-on-raspberry/tree/master/ci#usage) to get armv7 installation `.deb` file.
-
-Copy the `.deb` file into your LXC container, eg.:
 ```
-$ scp grafana_5.2.0-1526413131pre1_armhf.deb root@graphs:grafana_5.2.0-1526413131pre1_armhf.deb
 $ ssh root@grahps
+# wget https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana_5.3.0-beta1_armhf.deb 
 # apt install libfontconfig
-# dpkg -i grafana_5.2.0-1526413131pre1_armhf.deb
+# dpkg -i grafana_5.3.0-beta1_armhf.deb
 # chown grafana:grafana /var/lib/grafana
 # systemctl daemon-reload
 # systemctl enable grafana-server
@@ -168,14 +164,21 @@ Set up the user, group, and directories that will be needed:
 Create and move Caddyfile:
 ```
 # vim /etc/caddy/Caddyfile
-graphs.yourdomain.com
-basicauth / yourSecretUser yourSuperSecretPassword
-proxy / localhost:3000 {
-	header_upstream -Authorization
+graphs.yourdomain.com {
+	basicauth / yourSecretUser yourSuperSecretPassword
+	proxy / localhost:3000 {
+		header_upstream -Authorization
+	}
+	gzip
+	log stdout
+	errors stderr
 }
-gzip
-log stdout
-errors stderr
+
+graphs:80, graphs.lan:80, <graphs-container-ip>:80 {
+	proxy / localhost:3000 {
+		header_upstream -Authorization
+	}
+}
 # chown www-data:www-data /etc/caddy/Caddyfile
 # chmod 444 /etc/caddy/Caddyfile
 ```

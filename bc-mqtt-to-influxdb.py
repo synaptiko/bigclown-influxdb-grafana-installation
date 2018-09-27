@@ -42,11 +42,11 @@ DEFAULT_INFLUXDB_PORT = 8086
 def mgtt_on_connect(client, userdata, flags, rc):
     log.info('Connected to MQTT broker with (code %s)', rc)
 
-    database = userdata['base_topic']
+    database = userdata['base_topic'].strip('/')
     userdata['influx'].create_database(database)
     userdata['influx'].switch_database(database)
 
-    client.subscribe(userdata['base_topic'] + '/+/+/+/+')
+    client.subscribe(userdata['base_topic'] + '+/+/+/+')
 
 
 def mgtt_on_message(client, userdata, msg):
@@ -100,7 +100,7 @@ def main():
                             opts.get('influxdb_port', DEFAULT_INFLUXDB_PORT),
                             'root', 'root')
 
-    base_topic = opts.get('base_topic', DEFAULT_MQTT_TOPIC).rstrip('/')
+    base_topic = opts.get('base_topic', DEFAULT_MQTT_TOPIC).rstrip('/') + '/'
 
     mqttc = mqtt.Client(userdata={'influx': client, 'base_topic': base_topic})
     mqttc.on_connect = mgtt_on_connect
