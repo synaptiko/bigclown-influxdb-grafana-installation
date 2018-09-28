@@ -174,7 +174,7 @@ graphs.yourdomain.com {
 	errors stderr
 }
 
-graphs:80, graphs.lan:80, <graphs-container-ip>:80 {
+graphs:3000, graphs.lan:3000, <graphs-container-ip>:3000 {
 	proxy / localhost:3000 {
 		header_upstream -Authorization
 	}
