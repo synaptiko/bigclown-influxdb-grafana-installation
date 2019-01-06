@@ -24,7 +24,7 @@ $ ssh root@<omnia>
 Distribution: Debian
 Release: Stretch
 Architecture: armv7l
-# vim /srv/lxc/influxdb-grafana/config # add the following line =>
+# vim /srv/lxc/influxdb-grafana/config # add the following lines =>
 lxc.mount.entry=/mnt/data/influxdb var/lib/influxdb none bind,create=dir 0 0
 lxc.mount.entry=/mnt/data/grafana var/lib/grafana none bind,create=dir 0 0
 # vim /etc/config/lxc-auto # add the following line =>
@@ -236,4 +236,43 @@ WantedBy=multi-user.target
 Verify everything is ok:
 ```
 # journalctl --boot -u caddy.service
+```
+
+### (Optional) Configure OpenVPN client for access behind NAT
+
+#### Make /dev/net/tun accessible to the LXC container
+
+```
+$ ssh root@<omnia>
+# vim /srv/lxc/influxdb-grafana/config # add the following lines =>
+## For OpenVPN
+lxc.mount.entry=/dev/net dev/net none bind,create=dir 0 0
+lxc.cgroup.devices.allow=c 10:200 rwm
+```
+
+#### Create client configuration and copy it to the LXC container
+
+I run [OpenVPN server in Docker](https://github.com/kylemanna/docker-openvpn) on my VPN. Follow the instructions in the README. I also use [Systemd unit](https://github.com/kylemanna/docker-openvpn/blob/master/docs/systemd.md) for auto-updates.
+
+I also configured following things:
+- [static ip](https://github.com/kylemanna/docker-openvpn/blob/master/docs/static-ips.md) for the client and also [docker container](https://stackoverflow.com/questions/27937185/assign-static-ip-to-docker-container#35359185)
+- [disable default route](https://github.com/kylemanna/docker-openvpn/blob/master/docs/faqs.md#how-do-i-set-up-a-split-tunnel).
+- [use TCP instead of UDP](https://github.com/kylemanna/docker-openvpn/blob/master/docs/tcp.md)
+- remove `push "block-outside-dns"` from the main config
+- switch off the logging [`--log-driver=none`](https://github.com/kylemanna/docker-openvpn/blob/master/docs/paranoid.md#logging-and-stdout)
+
+Generate a client configuration with `graphs` as a name [with 4096 bit key](https://github.com/kylemanna/docker-openvpn/blob/master/docs/paranoid.md#easyrsa-and-4096-bit-rsa-keys). Save it as `graphs.ovpn` file. Remove `redirect-gateway def1` from it.
+
+From your local machine once you download the configuration:
+```
+$ scp graphs.ovpn root@graphs:graphs.ovpn
+```
+
+#### Install OpenVPN to the LXC container
+
+```
+$ ssh root@grahps
+# apt install openvpn
+# mv graphs.ovpn /etc/openvpn/graphs-ovpn.conf
+# systemctl enable --now openvpn@graphs-ovpn.service
 ```
